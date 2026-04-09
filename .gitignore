@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+secrets.yaml
+secrets.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code (local tool permissions — not for others)
+.claude/settings.local.json
+
+# OMC (oh-my-claudecode plugin state)
+.omc/
+
+# CFS log samples and pod describes (may contain internal hostnames/xnames)
+cfs-log.txt
+cfs-*
+
+# Pytest
+.pytest_cache/
+
+# Stray files
+1

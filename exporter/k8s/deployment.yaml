@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfs-log-exporter
+  namespace: services
+  labels:
+    app: cfs-log-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cfs-log-exporter
+  template:
+    metadata:
+      labels:
+        app: cfs-log-exporter
+    spec:
+      serviceAccountName: cfs-log-exporter
+      containers:
+        - name: exporter
+          image: cfs-log-exporter:latest
+          env:
+            - name: RECEIVER_URL
+              value: "https://cfs-logs.example.com"  # CHANGE ME
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cfs-log-exporter
+                  key: api-key
+            - name: NAMESPACE
+              value: "services"
+            - name: POD_PREFIX
+              value: "cfs-"
+            - name: CONTAINER_NAME
+              value: "ansible"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

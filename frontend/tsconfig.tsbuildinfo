@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/utils.ts","./src/vite-env.d.ts","./src/components/clusterselector.tsx","./src/components/filterbar.tsx","./src/components/logstream.tsx","./src/components/sessiondetail.tsx","./src/components/sessionlist.tsx"],"version":"5.8.3"}

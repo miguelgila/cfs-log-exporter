@@ -1,0 +1,15 @@
+services:
+  receiver:
+    build:
+      context: .
+      dockerfile: receiver/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=/data/cfs_logs.db
+      - API_KEY=changeme
+    volumes:
+      - receiver-data:/data
+
+volumes:
+  receiver-data:
