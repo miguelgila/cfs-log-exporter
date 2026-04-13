@@ -6,7 +6,7 @@ Helm chart for deploying the CFS Log Exporter stack (exporter + receiver/UI) on 
 
 ```bash
 # Deploy both components in a single release
-helm install cfs-log ./charts/cfs-log-exporter/ \
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ \
   --set apiKey="my-secret-key"
 
 # From OCI registry (when published)
@@ -19,13 +19,13 @@ The exporter runs on CSM clusters and the receiver typically runs on a managemen
 
 ```bash
 # Receiver only (management cluster)
-helm install cfs-log ./charts/cfs-log-exporter/ \
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ \
   --namespace cfs-log-viewer --create-namespace \
   --set exporter.enabled=false \
   --set apiKey="my-secret-key"
 
 # Exporter only (CSM cluster)
-helm install cfs-log ./charts/cfs-log-exporter/ \
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ \
   --namespace services \
   --set receiver.enabled=false \
   --set apiKey="my-secret-key" \
@@ -106,7 +106,7 @@ helm install cfs-log ./charts/cfs-log-exporter/ \
 Ingress is disabled by default. To expose the receiver UI externally with TLS:
 
 ```bash
-helm install cfs-log ./charts/cfs-log-exporter/ \
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ \
   --set apiKey="my-secret-key" \
   --set exporter.enabled=false \
   --set receiver.ingress.enabled=true \
@@ -139,13 +139,13 @@ receiver:
 ```
 
 ```bash
-helm install cfs-log ./charts/cfs-log-exporter/ -f my-values.yaml
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ -f my-values.yaml
 ```
 
 To skip TLS entirely (e.g., behind a load balancer that terminates TLS):
 
 ```bash
-helm install cfs-log ./charts/cfs-log-exporter/ \
+helm install cfs-log ./k8s/charts/cfs-log-exporter/ \
   --set receiver.ingress.enabled=true \
   --set receiver.ingress.host="cfs-logs.internal" \
   --set receiver.ingress.tls.enabled=false

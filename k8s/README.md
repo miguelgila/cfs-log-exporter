@@ -44,7 +44,7 @@ CSM Cluster(s)              Management Cluster
 
 ## Helm Chart
 
-A Helm chart is also available at [`charts/cfs-log-exporter/`](../charts/cfs-log-exporter/) for templated deployments with configurable values. Use the raw manifests here for simple deployments, or the Helm chart for more flexibility.
+A Helm chart is also available at [`charts/cfs-log-exporter/`](charts/cfs-log-exporter/) for templated deployments with configurable values. Use the raw manifests here for simple deployments, or the Helm chart for more flexibility.
 
 ## Subdirectories
 

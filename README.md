@@ -149,19 +149,19 @@ Tagged releases are also available (e.g., `ghcr.io/miguelgila/cfs-log-exporter:v
 
 Example Kubernetes manifests are provided in the [`k8s/`](k8s/) directory. See the [k8s README](k8s/README.md) for a full walkthrough.
 
-A **Helm chart** is also available in [`charts/cfs-log-exporter/`](charts/cfs-log-exporter/):
+A **Helm chart** is also available in [`k8s/charts/cfs-log-exporter/`](k8s/charts/cfs-log-exporter/):
 
 ```bash
 # Deploy both exporter and receiver
-helm install cfs-log charts/cfs-log-exporter/ \
+helm install cfs-log k8s/charts/cfs-log-exporter/ \
   --set apiKey="my-secret" \
   --set exporter.receiverUrl="http://cfs-log-receiver:8000"
 
 # Receiver only (on management cluster)
-helm install cfs-log charts/cfs-log-exporter/ --set exporter.enabled=false
+helm install cfs-log k8s/charts/cfs-log-exporter/ --set exporter.enabled=false
 
 # Exporter only (on CSM cluster)
-helm install cfs-log charts/cfs-log-exporter/ --set receiver.enabled=false \
+helm install cfs-log k8s/charts/cfs-log-exporter/ --set receiver.enabled=false \
   --set exporter.receiverUrl="http://receiver-host:8000"
 ```
 
@@ -421,9 +421,9 @@ These are not stored in the database, reducing noise in the UI.
 │   └── vite.config.ts
 ├── k8s/
 │   ├── exporter/          # K8s manifests for the exporter
-│   └── receiver/          # K8s manifests for the receiver + UI
-├── charts/
-│   └── cfs-log-exporter/  # Helm chart (exporter + receiver)
+│   ├── receiver/          # K8s manifests for the receiver + UI
+│   └── charts/
+│       └── cfs-log-exporter/  # Helm chart (exporter + receiver)
 ├── scripts/
 │   └── run_local.sh       # Run full stack locally
 └── .github/workflows/
