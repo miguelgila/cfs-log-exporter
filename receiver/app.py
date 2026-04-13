@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,62 @@ except ImportError:
 
 API_KEY = os.environ.get("API_KEY", "changeme")
 
+# Staleness reconciler configuration
+STALE_CHECK_INTERVAL = int(os.environ.get("STALE_CHECK_INTERVAL", "60"))  # seconds
+STALE_THRESHOLD_MINUTES = int(os.environ.get("STALE_THRESHOLD_MINUTES", "15"))
+MAX_STALE_CHECKS = int(os.environ.get("MAX_STALE_CHECKS", "6"))
+
+log = logging.getLogger("cfs-receiver")
+
 _session_factory = get_session_factory()
+
+
+# ---------------------------------------------------------------------------
+# Staleness reconciler
+# ---------------------------------------------------------------------------
+
+async def _reconcile_stale_sessions() -> None:
+    """Periodically check for sessions stuck in 'running' and transition them.
+
+    - If a 'running' session hasn't received new data for STALE_THRESHOLD_MINUTES,
+      mark it as 'incomplete' and increment stale_checks.
+    - If an 'incomplete' session has been checked MAX_STALE_CHECKS times with no
+      new activity, mark it as 'unknown'.
+    """
+    while True:
+        await asyncio.sleep(STALE_CHECK_INTERVAL)
+        try:
+            db = _session_factory()
+            try:
+                cutoff = datetime.now(timezone.utc) - timedelta(minutes=STALE_THRESHOLD_MINUTES)
+                stale = db.execute(
+                    select(SessionRecord).where(
+                        SessionRecord.status.in_(["running", "incomplete"]),
+                        SessionRecord.updated_at < cutoff,
+                    )
+                ).scalars().all()
+
+                for session in stale:
+                    session.stale_checks += 1
+                    if session.status == "running":
+                        session.status = "incomplete"
+                        log.info(
+                            "Session %s marked incomplete (no activity for >%d min)",
+                            session.session_uuid, STALE_THRESHOLD_MINUTES,
+                        )
+                    elif session.stale_checks >= MAX_STALE_CHECKS:
+                        session.status = "unknown"
+                        log.info(
+                            "Session %s marked unknown after %d stale checks",
+                            session.session_uuid, session.stale_checks,
+                        )
+
+                if stale:
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as exc:
+            log.warning("Stale session reconciler error: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +90,13 @@ _session_factory = get_session_factory()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_all()
+    reconciler_task = asyncio.create_task(_reconcile_stale_sessions())
     yield
+    reconciler_task.cancel()
+    try:
+        await reconciler_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(title="CFS Log Exporter Receiver", lifespan=lifespan)
@@ -147,6 +209,8 @@ def ingest(body: IngestBody, db: Session = Depends(get_db)):
         session_rec.status = sp.status
         session_rec.started_at = sp.started_at or session_rec.started_at
         session_rec.ended_at = sp.ended_at or session_rec.ended_at
+        session_rec.updated_at = datetime.now(timezone.utc)
+        session_rec.stale_checks = 0
         if sp.xnames:
             session_rec.xnames = sp.xnames
         if sp.playbooks:
@@ -310,7 +374,7 @@ async def stream_session(
                     }
                     last_line = line.line_number
 
-                session_done = session_rec.status in ("completed", "failed")
+                session_done = session_rec.status in ("completed", "failed", "incomplete", "unknown")
             finally:
                 db.close()
 
