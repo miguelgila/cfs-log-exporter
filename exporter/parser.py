@@ -166,6 +166,7 @@ class CFSLogParser:
         self.first_timestamp: Optional[datetime] = None
         self.last_seen_timestamp: Optional[datetime] = None
         self._in_play_recap: bool = False
+        self._recap_has_failures: bool = False
 
     def parse_line(self, line_number: int, line: str) -> Optional[LogEvent]:
         """Parse a single log line and return a structured event, or None for noise."""
@@ -322,6 +323,10 @@ class CFSLogParser:
                 xname = hostname if RE_XNAME.fullmatch(hostname) else None
                 if xname:
                     self.xnames.add(xname)
+                # Check for failed or unreachable hosts
+                for count_match in re.finditer(r"(failed|unreachable)=(\d+)", counts):
+                    if int(count_match.group(2)) > 0:
+                        self._recap_has_failures = True
                 return LogEvent(
                     event_type=EventType.RECAP_HOST,
                     line_number=line_number,
@@ -375,6 +380,11 @@ class CFSLogParser:
             )
 
         return None
+
+    @property
+    def has_failures(self) -> bool:
+        """True if any PLAY RECAP showed failed > 0 or unreachable > 0."""
+        return self._recap_has_failures
 
     def get_session_info(self) -> SessionInfo:
         """Return accumulated session metadata."""

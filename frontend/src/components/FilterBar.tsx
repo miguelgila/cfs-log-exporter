@@ -74,6 +74,8 @@ export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) 
         <option value="running">Running</option>
         <option value="completed">Completed</option>
         <option value="failed">Failed</option>
+        <option value="incomplete">Incomplete</option>
+        <option value="unknown">Unknown</option>
       </select>
 
       {(currentFilters.xname || currentFilters.status) && (

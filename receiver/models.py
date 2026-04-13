@@ -53,6 +53,10 @@ class SessionRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    stale_checks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     log_lines: Mapped[list[LogLine]] = relationship(
         "LogLine", back_populates="session", cascade="all, delete-orphan"
@@ -115,6 +119,15 @@ def create_all(db_path: str | None = None) -> None:
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(sessions)"))]
         if "cluster" not in cols:
             conn.execute(text("ALTER TABLE sessions ADD COLUMN cluster TEXT"))
+            conn.commit()
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(sessions)"))]
+        if "updated_at" not in cols:
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+            conn.execute(text("UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL"))
+            conn.commit()
+        if "stale_checks" not in cols:
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN stale_checks INTEGER DEFAULT 0"))
             conn.commit()
     with engine.connect() as conn:
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(log_lines)"))]

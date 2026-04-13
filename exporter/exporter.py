@@ -310,7 +310,7 @@ async def stream_pod_logs(pod_name: str, target_xnames: list[str] | None = None)
 
                 async for raw_line in resp.content:
                     if shutdown_event.is_set():
-                        final_status = "running"
+                        final_status = "incomplete"
                         break
 
                     line_text = (
@@ -374,7 +374,9 @@ async def stream_pod_logs(pod_name: str, target_xnames: list[str] | None = None)
 
         # Determine final status
         if shutdown_event.is_set():
-            final_status = "running"
+            final_status = "incomplete"
+        elif parser.has_failures:
+            final_status = "failed"
 
         flush_task.cancel()
         try:
