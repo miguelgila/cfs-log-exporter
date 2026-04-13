@@ -1,4 +1,11 @@
 ---
+# RBAC for the CFS Log Exporter.
+# On CSM clusters with permissive defaults, the default service account in
+# the services namespace may already have the required permissions (pod watch,
+# pod/log read, configmap read). In that case this manifest is optional.
+# It is included to document the minimum required permissions and to support
+# clusters with more restrictive RBAC policies.
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
