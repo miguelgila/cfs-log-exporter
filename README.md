@@ -86,22 +86,21 @@ This allows operations teams to monitor CFS session execution across cluster bou
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- Docker and Docker Compose (optional, for local receiver)
+- `kubeconfig` with access to a CSM cluster
 
-### Option 1: Full Local Stack with Docker Compose
+### Option 1: Run Local Script (recommended)
+
+The `run_local.sh` script starts both the receiver and exporter in one command:
 
 ```bash
-# Start receiver and build containers
-docker-compose up -d
-
-# In a new terminal, load sample data
-python scripts/load_sample.py cfs-log.txt http://localhost:8000
-
-# Open browser
-open http://localhost:8000
+./scripts/run_local.sh
 ```
 
-The receiver will be accessible at `http://localhost:8000`. The frontend is served at the root path.
+This will:
+- Create a Python virtualenv and install dependencies
+- Build the frontend (on first run)
+- Start the receiver on `http://localhost:8000`
+- Start the exporter connected to your local kubeconfig cluster
 
 ### Option 2: Manual Setup
 
@@ -133,13 +132,7 @@ npm run dev
 
 Frontend will run on `http://localhost:5173`, API on `http://localhost:8000`.
 
-**4. Load sample data:**
-
-```bash
-python scripts/load_sample.py cfs-log.txt http://localhost:8000
-```
-
-**5. Open browser:**
+**4. Open browser:**
 
 ```bash
 open http://localhost:5173
@@ -147,84 +140,59 @@ open http://localhost:5173
 
 ## Deployment
 
-### Deploy Exporter (CSM Cluster)
+Pre-built container images are publicly available on GitHub Container Registry:
 
-1. Build and push the exporter image:
+- `ghcr.io/miguelgila/cfs-log-exporter:latest`
+- `ghcr.io/miguelgila/cfs-log-receiver:latest`
+
+Tagged releases are also available (e.g., `ghcr.io/miguelgila/cfs-log-exporter:v0.0.6`).
+
+Example Kubernetes manifests are provided in the [`k8s/`](k8s/) directory. See the [k8s README](k8s/README.md) for a full walkthrough.
+
+A **Helm chart** is also available in [`k8s/charts/cfs-log-exporter/`](k8s/charts/cfs-log-exporter/):
 
 ```bash
-docker build -f exporter/Dockerfile -t your-registry/cfs-log-exporter:latest .
-docker push your-registry/cfs-log-exporter:latest
+# Deploy both exporter and receiver
+helm install cfs-log k8s/charts/cfs-log-exporter/ \
+  --set apiKey="my-secret" \
+  --set exporter.receiverUrl="http://cfs-log-receiver:8000"
+
+# Receiver only (on management cluster)
+helm install cfs-log k8s/charts/cfs-log-exporter/ --set exporter.enabled=false
+
+# Exporter only (on CSM cluster)
+helm install cfs-log k8s/charts/cfs-log-exporter/ --set receiver.enabled=false \
+  --set exporter.receiverUrl="http://receiver-host:8000"
 ```
 
-2. Create the API key secret:
+### Deploy Receiver (management cluster)
 
 ```bash
-kubectl create secret generic cfs-log-exporter \
-  --from-literal=api-key=your-secret-key \
-  -n services
+kubectl create namespace cfs-log-viewer
+kubectl apply -f k8s/receiver/
 ```
 
-3. Create RBAC (service account, role, binding):
+Edit `k8s/receiver/secret.yaml` and `k8s/receiver/ingress.yaml` with your API key and hostname before applying.
+
+### Deploy Exporter (each CSM cluster)
+
+Edit `k8s/exporter/deployment.yaml` to set `RECEIVER_URL` pointing to the receiver, then:
 
 ```bash
-kubectl apply -f exporter/k8s/rbac.yaml -n services
+kubectl apply -f k8s/exporter/
 ```
 
-4. Deploy:
+### Verify
 
 ```bash
-kubectl set env deployment/cfs-log-exporter \
-  RECEIVER_URL=https://cfs-logs.your-domain.com \
-  -n services
-kubectl apply -f exporter/k8s/deployment.yaml -n services
-```
+# Receiver health
+curl https://your-receiver-hostname/api/health
 
-Verify:
-```bash
+# Exporter logs
 kubectl logs -f deployment/cfs-log-exporter -n services
-```
 
-### Deploy Receiver (Remote Cluster)
-
-1. Build and push the receiver image:
-
-```bash
-docker build -f receiver/Dockerfile -t your-registry/cfs-log-receiver:latest .
-docker push your-registry/cfs-log-receiver:latest
-```
-
-2. Create the API key secret:
-
-```bash
-kubectl create secret generic cfs-log-receiver \
-  --from-literal=api-key=your-secret-key
-```
-
-3. Deploy receiver:
-
-```bash
-kubectl apply -f receiver/k8s/deployment.yaml
-kubectl apply -f receiver/k8s/service.yaml
-```
-
-4. Deploy ingress (update hostname):
-
-```bash
-# Edit receiver/k8s/ingress.yaml to set your domain
-kubectl apply -f receiver/k8s/ingress.yaml
-```
-
-5. Verify deployment:
-
-```bash
-kubectl get pods -l app=cfs-log-receiver
-kubectl logs -f deployment/cfs-log-receiver
-```
-
-6. Test the API:
-
-```bash
-curl -X GET http://cfs-logs.your-domain.com/api/health
+# Receiver logs
+kubectl logs -f deployment/cfs-log-receiver -n cfs-log-viewer
 ```
 
 ## Configuration
@@ -431,24 +399,19 @@ These are not stored in the database, reducing noise in the UI.
 ├── exporter/
 │   ├── parser.py          # CFS log parser
 │   ├── exporter.py        # K8s watcher and event sender
+│   ├── test_parser.py     # Parser unit tests
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   └── k8s/
-│       ├── deployment.yaml
-│       └── rbac.yaml
+│   └── Dockerfile
 ├── receiver/
-│   ├── app.py             # FastAPI app
+│   ├── app.py             # FastAPI app (API + staleness reconciler)
 │   ├── models.py          # SQLAlchemy models
+│   ├── test_reconciler.py # Reconciler unit tests
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   └── k8s/
-│       ├── deployment.yaml
-│       ├── service.yaml
-│       └── ingress.yaml
+│   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx        # Main app component
-│   │   ├── main.tsx
+│   │   ├── App.tsx        # Main app with browser history navigation
+│   │   ├── App.test.tsx   # Navigation unit tests
 │   │   └── components/
 │   │       ├── SessionList.tsx
 │   │       ├── SessionDetail.tsx
@@ -456,61 +419,32 @@ These are not stored in the database, reducing noise in the UI.
 │   │       └── LogStream.tsx
 │   ├── package.json
 │   └── vite.config.ts
+├── k8s/
+│   ├── exporter/          # K8s manifests for the exporter
+│   ├── receiver/          # K8s manifests for the receiver + UI
+│   └── charts/
+│       └── cfs-log-exporter/  # Helm chart (exporter + receiver)
 ├── scripts/
-│   └── load_sample.py     # Load sample log file
-├── cfs-log.txt            # Example CFS session log
-└── docker-compose.yml
+│   └── run_local.sh       # Run full stack locally
+└── .github/workflows/
+    ├── test.yml           # CI: unit tests + type checks
+    ├── build-images.yml   # Build container images (push on release tags)
+    └── release.yml        # GitHub releases
 ```
 
 ### Testing
 
-**Test the parser locally:**
+Unit tests are run automatically in CI on every PR. To run locally:
 
 ```bash
-cd exporter
-python parser.py ../cfs-log.txt
-```
+# Exporter parser tests
+cd exporter && python3 -m pytest test_parser.py -v
 
-Output shows parsed session info and event counts:
-```
-Session: c452edd0-7b87-4af1-b4c4-65d988cc694b
-Pod: cfs-c452edd0-7b87-4af1-b4c4-65d988cc694b-k92xrc
-Batcher: 1dfcf57d-064c-42e0-9f6a-63e4be92c924
-Xnames (28): x1300c7s5b0n0, x1102c7s1b1n0, x1301c7s0b0n0, x1102c7s2b0n0, ...
-Playbooks (2): csm_packages.yml, gpu_customize_driver_playbook.yml
-Time: 2026-04-07 10:45:30 -> 2026-04-07 10:45:53
-Total events: 42
+# Receiver reconciler tests
+cd receiver && python3 -m pytest test_reconciler.py -v
 
-Events by type:
-  info: 18
-  task_result: 12
-  playbook_start: 2
-  play_start: 8
-  play_recap: 2
-
-Task results by status:
-  ok: 5
-  changed: 3
-  failed: 4
-```
-
-**Test the receiver API:**
-
-```bash
-# Start receiver
-cd receiver
-uvicorn app:app
-
-# In another terminal, load sample data
-python scripts/load_sample.py ../cfs-log.txt http://localhost:8000
-```
-
-**Test the frontend:**
-
-```bash
-cd frontend
-npm run dev
-# Open http://localhost:5173
+# Frontend tests (type-check + vitest)
+cd frontend && npx tsc -b --noEmit && npm test
 ```
 
 ## Troubleshooting
@@ -524,13 +458,13 @@ npm run dev
 
 2. Verify receiver is running:
    ```bash
-   curl https://cfs-logs.your-domain.com/api/health
+   curl https://your-receiver-hostname/api/health
    ```
 
 3. Check network connectivity from exporter pod:
    ```bash
    kubectl exec -it deployment/cfs-log-exporter -n services -- \
-     curl -v https://cfs-logs.your-domain.com/api/health
+     curl -v https://your-receiver-hostname/api/health
    ```
 
 4. Verify API keys match:
@@ -543,7 +477,7 @@ npm run dev
 
 1. Check that events were ingested:
    ```bash
-   curl -X GET http://cfs-logs.your-domain.com/api/sessions
+   curl -X GET http://your-receiver-hostname/api/sessions
    ```
 
 2. Check receiver logs:

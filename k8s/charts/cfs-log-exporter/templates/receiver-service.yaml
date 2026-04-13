@@ -1,0 +1,16 @@
+{{- if .Values.receiver.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-receiver
+  labels:
+    {{- include "cfs-log-exporter.receiver.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.receiver.service.type }}
+  selector:
+    {{- include "cfs-log-exporter.receiver.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ .Values.receiver.service.port }}
+      targetPort: 8000
+      protocol: TCP
+{{- end }}

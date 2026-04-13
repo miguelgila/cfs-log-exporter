@@ -100,7 +100,10 @@ def get_engine(db_path: str | None = None):
         f"sqlite:///{path}",
         echo=False,
         poolclass=NullPool,
-        connect_args={"check_same_thread": False},
+        connect_args={
+            "check_same_thread": False,
+            "timeout": 30,  # wait up to 30s for locks instead of failing immediately
+        },
     )
 
 
@@ -114,6 +117,9 @@ def create_all(db_path: str | None = None) -> None:
     """Create all tables and apply lightweight migrations for existing DBs."""
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)
+    # Enable WAL mode for better concurrent read/write performance
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA journal_mode=WAL"))
     # Add cluster column if missing (migration for existing databases)
     with engine.connect() as conn:
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(sessions)"))]

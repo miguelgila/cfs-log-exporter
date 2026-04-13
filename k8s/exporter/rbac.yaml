@@ -1,0 +1,46 @@
+---
+# RBAC for the CFS Log Exporter.
+# On CSM clusters with permissive defaults, the default service account in
+# the services namespace may already have the required permissions (pod watch,
+# pod/log read, configmap read). In that case this manifest is optional.
+# It is included to document the minimum required permissions and to support
+# clusters with more restrictive RBAC policies.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cfs-log-exporter
+  namespace: services
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cfs-log-exporter
+rules:
+  # Watch and list pods to detect new CFS sessions
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # Read pod logs to stream Ansible output
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Read ConfigMaps for cluster name auto-detection
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cfs-log-exporter
+subjects:
+  - kind: ServiceAccount
+    name: cfs-log-exporter
+    namespace: services
+roleRef:
+  kind: ClusterRole
+  name: cfs-log-exporter
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,51 @@
+{{- if and .Values.receiver.enabled .Values.receiver.ingress.enabled }}
+{{- $host := .Values.receiver.ingress.host }}
+{{- $tlsSecretName := .Values.receiver.ingress.tls.secretName | default (printf "%s-tls" .Release.Name) }}
+
+{{- if .Values.receiver.ingress.tls.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $host }}
+  labels:
+    {{- include "cfs-log-exporter.receiver.labels" . | nindent 4 }}
+spec:
+  secretName: {{ $tlsSecretName }}
+  commonName: {{ $host }}
+  dnsNames:
+    - {{ $host }}
+  issuerRef:
+    kind: {{ .Values.receiver.ingress.tls.issuerRef.kind }}
+    name: {{ .Values.receiver.ingress.tls.issuerRef.name }}
+{{- end }}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-receiver
+  labels:
+    {{- include "cfs-log-exporter.receiver.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.receiver.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.receiver.ingress.className }}
+  {{- if .Values.receiver.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ $host }}
+      secretName: {{ $tlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-receiver
+                port:
+                  number: {{ .Values.receiver.service.port }}
+{{- end }}

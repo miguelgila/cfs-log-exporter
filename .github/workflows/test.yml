@@ -29,6 +29,19 @@ jobs:
         working-directory: receiver
         run: python -m pytest test_reconciler.py -v
 
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart
+        run: helm lint k8s/charts/cfs-log-exporter/
+
+      - name: Template renders without errors
+        run: helm template test-release k8s/charts/cfs-log-exporter/
+
   frontend-tests:
     runs-on: ubuntu-latest
     steps:

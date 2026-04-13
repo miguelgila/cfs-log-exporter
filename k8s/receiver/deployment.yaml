@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfs-log-receiver
+  namespace: cfs-log-viewer
+  labels:
+    app: cfs-log-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cfs-log-receiver
+  template:
+    metadata:
+      labels:
+        app: cfs-log-receiver
+    spec:
+      containers:
+        - name: receiver
+          image: ghcr.io/miguelgila/cfs-log-receiver:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cfs-log-receiver
+                  key: api-key
+            - name: DB_PATH
+              value: "/data/cfs_logs.db"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: cfs-log-receiver-data

@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cfs-log-exporter
+  namespace: services
+  labels:
+    app: cfs-log-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cfs-log-exporter
+  template:
+    metadata:
+      labels:
+        app: cfs-log-exporter
+    spec:
+      serviceAccountName: cfs-log-exporter
+      containers:
+        - name: exporter
+          image: ghcr.io/miguelgila/cfs-log-exporter:latest
+          env:
+            # URL of the receiver API
+            - name: RECEIVER_URL
+              value: "http://cfs-log-receiver.cfs-log-viewer.svc:8000"
+            # Namespace where CFS pods run
+            - name: NAMESPACE
+              value: "services"
+            # Pod name prefix to watch
+            - name: POD_PREFIX
+              value: "cfs-"
+            # Container to stream logs from
+            - name: CONTAINER_NAME
+              value: "ansible"
+            # Batch settings
+            - name: BATCH_INTERVAL
+              value: "2"
+            - name: BATCH_SIZE
+              value: "100"
+            # API key for authenticating with the receiver
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cfs-log-exporter
+                  key: api-key
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
