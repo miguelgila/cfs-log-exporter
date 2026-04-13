@@ -1,0 +1,17 @@
+{{- if and .Values.receiver.enabled .Values.receiver.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-receiver-data
+  labels:
+    {{- include "cfs-log-exporter.receiver.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.receiver.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.receiver.persistence.size }}
+  {{- if .Values.receiver.persistence.storageClass }}
+  storageClassName: {{ .Values.receiver.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

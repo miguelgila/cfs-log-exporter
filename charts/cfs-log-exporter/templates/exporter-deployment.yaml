@@ -1,0 +1,45 @@
+{{- if .Values.exporter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-exporter
+  labels:
+    {{- include "cfs-log-exporter.exporter.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cfs-log-exporter.exporter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cfs-log-exporter.exporter.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.exporter.rbac.create }}
+      serviceAccountName: {{ .Release.Name }}-exporter
+      {{- end }}
+      containers:
+        - name: exporter
+          image: "{{ .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag }}"
+          imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
+          env:
+            - name: RECEIVER_URL
+              value: {{ .Values.exporter.receiverUrl | quote }}
+            - name: NAMESPACE
+              value: {{ .Values.exporter.namespace | quote }}
+            - name: POD_PREFIX
+              value: {{ .Values.exporter.podPrefix | quote }}
+            - name: CONTAINER_NAME
+              value: {{ .Values.exporter.containerName | quote }}
+            - name: BATCH_INTERVAL
+              value: {{ .Values.exporter.batchInterval | quote }}
+            - name: BATCH_SIZE
+              value: {{ .Values.exporter.batchSize | quote }}
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-api-key
+                  key: api-key
+          resources:
+            {{- toYaml .Values.exporter.resources | nindent 12 }}
+{{- end }}

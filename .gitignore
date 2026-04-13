@@ -44,8 +44,8 @@ Thumbs.db
 .omc/
 
 # CFS log samples and pod describes (may contain internal hostnames/xnames)
-cfs-log.txt
-cfs-*
+/cfs-log.txt
+/cfs-*
 
 # Pytest
 .pytest_cache/

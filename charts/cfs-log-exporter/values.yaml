@@ -1,0 +1,71 @@
+# -- Shared settings
+apiKey: "changeme"  # Shared secret between exporter and receiver
+
+# -- Exporter settings
+exporter:
+  enabled: true
+  image:
+    repository: ghcr.io/miguelgila/cfs-log-exporter
+    tag: latest
+    pullPolicy: IfNotPresent
+  # URL of the receiver API. Override when deploying exporter separately.
+  receiverUrl: "http://cfs-log-receiver:8000"
+  namespace: services
+  podPrefix: "cfs-"
+  containerName: ansible
+  batchInterval: 2
+  batchSize: 100
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  rbac:
+    # Set to false on CSM clusters where the default service account
+    # already has pod watch/log read permissions.
+    create: true
+
+# -- Receiver settings
+receiver:
+  enabled: true
+  image:
+    repository: ghcr.io/miguelgila/cfs-log-receiver
+    tag: latest
+    pullPolicy: IfNotPresent
+  dbPath: "/data/cfs_logs.db"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  service:
+    type: ClusterIP
+    port: 8000
+  persistence:
+    enabled: true
+    size: 5Gi
+    # storageClass: ""  # set if your cluster requires a specific storage class
+    accessMode: ReadWriteOnce
+  ingress:
+    enabled: false
+    className: nginx
+    host: cfs-log-viewer.example.com
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "900"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "900"
+      nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+      nginx.ingress.kubernetes.io/client-body-buffer-size: "1m"
+      cert-manager.io/cluster-issuer: letsencrypt
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    tls:
+      enabled: true
+      secretName: ""  # auto-generated if empty
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt

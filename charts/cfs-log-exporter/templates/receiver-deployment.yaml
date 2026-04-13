@@ -1,0 +1,57 @@
+{{- if .Values.receiver.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-receiver
+  labels:
+    {{- include "cfs-log-exporter.receiver.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.receiver.replicas }}
+  selector:
+    matchLabels:
+      {{- include "cfs-log-exporter.receiver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cfs-log-exporter.receiver.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: receiver
+          image: "{{ .Values.receiver.image.repository }}:{{ .Values.receiver.image.tag }}"
+          imagePullPolicy: {{ .Values.receiver.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-api-key
+                  key: api-key
+            - name: DB_PATH
+              value: {{ .Values.receiver.dbPath | quote }}
+          {{- if .Values.receiver.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
+          resources:
+            {{- toYaml .Values.receiver.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      {{- if .Values.receiver.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-receiver-data
+      {{- end }}
+{{- end }}

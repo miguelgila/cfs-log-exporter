@@ -42,6 +42,10 @@ CSM Cluster(s)              Management Cluster
 
 4. **(Optional) Configure Ingress** — edit `receiver/ingress.yaml` with your hostname and TLS settings.
 
+## Helm Chart
+
+A Helm chart is also available at [`charts/cfs-log-exporter/`](../charts/cfs-log-exporter/) for templated deployments with configurable values. Use the raw manifests here for simple deployments, or the Helm chart for more flexibility.
+
 ## Subdirectories
 
 - [`exporter/`](exporter/) — Exporter deployment, RBAC, and secret

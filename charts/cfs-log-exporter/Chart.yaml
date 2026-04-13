@@ -1,0 +1,12 @@
+apiVersion: v2
+name: cfs-log-exporter
+description: CFS Log Exporter - near-real-time Ansible log streaming and viewer for CSM clusters
+type: application
+version: 0.1.0
+appVersion: "0.0.7"
+maintainers:
+  - name: Miguel Gila
+    url: https://github.com/miguelgila
+home: https://github.com/miguelgila/cfs-log-exporter
+sources:
+  - https://github.com/miguelgila/cfs-log-exporter
