@@ -80,7 +80,7 @@ export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) 
       <div className="relative">
         <input
           type="text"
-          placeholder="Filter by xname..."
+          placeholder="Filter by xname (x100*)..."
           value={xnameInput}
           onChange={(e) => {
             setXnameInput(e.target.value);

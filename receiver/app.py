@@ -289,17 +289,30 @@ def list_sessions(
         stmt = stmt.where(SessionRecord.started_at <= started_before)
 
     # SQLite JSON: filter sessions whose xnames array contains the given xname
+    # Supports glob wildcards (* and ?) for pattern matching
     if xname:
-        stmt = stmt.where(
-            SessionRecord.id.in_(
-                select(SessionRecord.id)
-                .where(
-                    text(
-                        "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value = :xname)"
-                    ).bindparams(xname=xname)
+        if "*" in xname or "?" in xname:
+            stmt = stmt.where(
+                SessionRecord.id.in_(
+                    select(SessionRecord.id)
+                    .where(
+                        text(
+                            "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value GLOB :xname)"
+                        ).bindparams(xname=xname)
+                    )
                 )
             )
-        )
+        else:
+            stmt = stmt.where(
+                SessionRecord.id.in_(
+                    select(SessionRecord.id)
+                    .where(
+                        text(
+                            "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value = :xname)"
+                        ).bindparams(xname=xname)
+                    )
+                )
+            )
 
     stmt = stmt.order_by(SessionRecord.created_at.desc()).limit(limit).offset(offset)
     rows = db.execute(stmt).scalars().unique().all()
