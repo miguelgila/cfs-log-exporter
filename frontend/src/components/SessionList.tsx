@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getSessions } from "../api";
 import type { Session } from "../types";
 import FilterBar from "./FilterBar";
+import type { SessionFilters } from "./FilterBar";
 import { formatDateTime } from "../utils";
 
 interface SessionListProps {
@@ -45,7 +46,7 @@ function formatTime(ts: string | null): string {
 
 export default function SessionList({ onSelectSession, clusterFilter }: SessionListProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [filters, setFilters] = useState<{ xname?: string; status?: string }>({});
+  const [filters, setFilters] = useState<SessionFilters>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {

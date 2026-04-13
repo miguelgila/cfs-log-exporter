@@ -264,6 +264,9 @@ def list_sessions(
     xname: str | None = Query(None),
     status: str | None = Query(None),
     cluster: str | None = Query(None),
+    session_name: str | None = Query(None),
+    started_after: datetime | None = Query(None),
+    started_before: datetime | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -275,6 +278,15 @@ def list_sessions(
 
     if status:
         stmt = stmt.where(SessionRecord.status == status)
+
+    if session_name:
+        stmt = stmt.where(SessionRecord.session_uuid.contains(session_name))
+
+    if started_after:
+        stmt = stmt.where(SessionRecord.started_at >= started_after)
+
+    if started_before:
+        stmt = stmt.where(SessionRecord.started_at <= started_before)
 
     # SQLite JSON: filter sessions whose xnames array contains the given xname
     if xname:
