@@ -264,6 +264,9 @@ def list_sessions(
     xname: str | None = Query(None),
     status: str | None = Query(None),
     cluster: str | None = Query(None),
+    session_name: str | None = Query(None),
+    started_after: datetime | None = Query(None),
+    started_before: datetime | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -276,18 +279,40 @@ def list_sessions(
     if status:
         stmt = stmt.where(SessionRecord.status == status)
 
+    if session_name:
+        stmt = stmt.where(SessionRecord.session_uuid.contains(session_name))
+
+    if started_after:
+        stmt = stmt.where(SessionRecord.started_at >= started_after)
+
+    if started_before:
+        stmt = stmt.where(SessionRecord.started_at <= started_before)
+
     # SQLite JSON: filter sessions whose xnames array contains the given xname
+    # Supports glob wildcards (* and ?) for pattern matching
     if xname:
-        stmt = stmt.where(
-            SessionRecord.id.in_(
-                select(SessionRecord.id)
-                .where(
-                    text(
-                        "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value = :xname)"
-                    ).bindparams(xname=xname)
+        if "*" in xname or "?" in xname:
+            stmt = stmt.where(
+                SessionRecord.id.in_(
+                    select(SessionRecord.id)
+                    .where(
+                        text(
+                            "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value GLOB :xname)"
+                        ).bindparams(xname=xname)
+                    )
                 )
             )
-        )
+        else:
+            stmt = stmt.where(
+                SessionRecord.id.in_(
+                    select(SessionRecord.id)
+                    .where(
+                        text(
+                            "EXISTS (SELECT 1 FROM json_each(sessions.xnames) WHERE json_each.value = :xname)"
+                        ).bindparams(xname=xname)
+                    )
+                )
+            )
 
     stmt = stmt.order_by(SessionRecord.created_at.desc()).limit(limit).offset(offset)
     rows = db.execute(stmt).scalars().unique().all()

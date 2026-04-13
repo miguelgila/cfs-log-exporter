@@ -2,14 +2,47 @@ import { useState, useEffect } from "react";
 import { getXnames } from "../api";
 import type { XnameInfo } from "../types";
 
+export interface SessionFilters {
+  xname?: string;
+  status?: string;
+  session_name?: string;
+  started_after?: string;
+}
+
 interface FilterBarProps {
-  onFilter: (filters: { xname?: string; status?: string }) => void;
-  currentFilters: { xname?: string; status?: string };
+  onFilter: (filters: SessionFilters) => void;
+  currentFilters: SessionFilters;
+}
+
+const TIME_PRESETS: { label: string; hours: number }[] = [
+  { label: "Last 1 hour", hours: 1 },
+  { label: "Last 12 hours", hours: 12 },
+  { label: "Last 1 day", hours: 24 },
+  { label: "Last 5 days", hours: 120 },
+  { label: "Last 10 days", hours: 240 },
+  { label: "Last 30 days", hours: 720 },
+];
+
+function hoursToISO(hours: number): string {
+  return new Date(Date.now() - hours * 3600_000).toISOString();
+}
+
+function matchPreset(isoStr?: string): string {
+  if (!isoStr) return "";
+  const ts = new Date(isoStr).getTime();
+  const now = Date.now();
+  const diffH = (now - ts) / 3600_000;
+  // Match the closest preset (within 10% tolerance)
+  for (const p of TIME_PRESETS) {
+    if (Math.abs(diffH - p.hours) / p.hours < 0.1) return String(p.hours);
+  }
+  return "";
 }
 
 export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) {
   const [xnames, setXnames] = useState<XnameInfo[]>([]);
   const [xnameInput, setXnameInput] = useState(currentFilters.xname || "");
+  const [nameInput, setNameInput] = useState(currentFilters.session_name || "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
@@ -20,12 +53,34 @@ export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) 
     ? xnames.filter((x) => x.xname.includes(xnameInput))
     : [];
 
+  const hasFilters = currentFilters.xname || currentFilters.status
+    || currentFilters.session_name || currentFilters.started_after;
+
   return (
     <div className="flex flex-wrap gap-3 items-center p-4 bg-gray-800 rounded-lg">
+      {/* Session name filter */}
+      <input
+        type="text"
+        placeholder="Filter by session name..."
+        value={nameInput}
+        onChange={(e) => setNameInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onFilter({ ...currentFilters, session_name: nameInput || undefined });
+          }
+        }}
+        onBlur={() => {
+          onFilter({ ...currentFilters, session_name: nameInput || undefined });
+        }}
+        className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded text-sm w-48
+                   border border-gray-600 focus:border-blue-500 focus:outline-none"
+      />
+
+      {/* Xname filter */}
       <div className="relative">
         <input
           type="text"
-          placeholder="Filter by xname..."
+          placeholder="Filter by xname (x100*)..."
           value={xnameInput}
           onChange={(e) => {
             setXnameInput(e.target.value);
@@ -62,6 +117,7 @@ export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) 
         )}
       </div>
 
+      {/* Status filter */}
       <select
         value={currentFilters.status || ""}
         onChange={(e) =>
@@ -78,10 +134,32 @@ export default function FilterBar({ onFilter, currentFilters }: FilterBarProps) 
         <option value="unknown">Unknown</option>
       </select>
 
-      {(currentFilters.xname || currentFilters.status) && (
+      {/* Time range filter */}
+      <select
+        value={matchPreset(currentFilters.started_after)}
+        onChange={(e) => {
+          const hours = e.target.value ? Number(e.target.value) : undefined;
+          onFilter({
+            ...currentFilters,
+            started_after: hours ? hoursToISO(hours) : undefined,
+          });
+        }}
+        className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded text-sm
+                   border border-gray-600 focus:border-blue-500 focus:outline-none"
+      >
+        <option value="">All time</option>
+        {TIME_PRESETS.map((p) => (
+          <option key={p.hours} value={p.hours}>
+            {p.label}
+          </option>
+        ))}
+      </select>
+
+      {hasFilters && (
         <button
           onClick={() => {
             setXnameInput("");
+            setNameInput("");
             onFilter({});
           }}
           className="text-sm text-gray-400 hover:text-gray-200"

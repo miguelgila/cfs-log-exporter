@@ -4,7 +4,7 @@ export interface Session {
   pod_name: string;
   batcher_id: string | null;
   cluster: string | null;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "incomplete" | "unknown";
   started_at: string | null;
   ended_at: string | null;
   xnames: string[];

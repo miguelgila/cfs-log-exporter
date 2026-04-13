@@ -12,6 +12,9 @@ export async function getSessions(params?: {
   xname?: string;
   status?: string;
   cluster?: string;
+  session_name?: string;
+  started_after?: string;
+  started_before?: string;
   limit?: number;
   offset?: number;
 }): Promise<Session[]> {
@@ -19,6 +22,9 @@ export async function getSessions(params?: {
   if (params?.xname) sp.set("xname", params.xname);
   if (params?.status) sp.set("status", params.status);
   if (params?.cluster) sp.set("cluster", params.cluster);
+  if (params?.session_name) sp.set("session_name", params.session_name);
+  if (params?.started_after) sp.set("started_after", params.started_after);
+  if (params?.started_before) sp.set("started_before", params.started_before);
   if (params?.limit) sp.set("limit", String(params.limit));
   if (params?.offset) sp.set("offset", String(params.offset));
   const qs = sp.toString();
