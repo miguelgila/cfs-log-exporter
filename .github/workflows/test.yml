@@ -1,0 +1,53 @@
+name: Run tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r receiver/requirements.txt -r exporter/requirements.txt
+          pip install pytest
+
+      - name: Run exporter tests
+        working-directory: exporter
+        run: python -m pytest test_parser.py -v
+
+      - name: Run receiver tests
+        working-directory: receiver
+        run: python -m pytest test_reconciler.py -v
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc -b --noEmit
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
