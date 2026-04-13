@@ -53,7 +53,7 @@ helm install cfs-log ./charts/cfs-log-exporter/ \
 | `exporter.containerName` | `ansible` | Container to stream logs from |
 | `exporter.batchInterval` | `2` | Seconds between batch flushes |
 | `exporter.batchSize` | `100` | Max events per batch |
-| `exporter.rbac.create` | `true` | Create ServiceAccount and RBAC. Set to `false` on CSM clusters with permissive defaults |
+| `exporter.rbac.create` | `false` | Create ServiceAccount and RBAC. Most CSM clusters already have the required permissions; set to `true` if yours has restrictive RBAC |
 | `exporter.resources.requests.cpu` | `50m` | CPU request |
 | `exporter.resources.requests.memory` | `64Mi` | Memory request |
 | `exporter.resources.limits.cpu` | `200m` | CPU limit |
@@ -100,6 +100,56 @@ helm install cfs-log ./charts/cfs-log-exporter/ \
 | `receiver.ingress.tls.secretName` | — | TLS secret name (auto-generated if empty) |
 | `receiver.ingress.tls.issuerRef.kind` | `ClusterIssuer` | cert-manager issuer kind |
 | `receiver.ingress.tls.issuerRef.name` | `letsencrypt` | cert-manager issuer name |
+
+## Enabling Ingress
+
+Ingress is disabled by default. To expose the receiver UI externally with TLS:
+
+```bash
+helm install cfs-log ./charts/cfs-log-exporter/ \
+  --set apiKey="my-secret-key" \
+  --set exporter.enabled=false \
+  --set receiver.ingress.enabled=true \
+  --set receiver.ingress.host="cfs-logs.my-domain.com" \
+  --set receiver.ingress.className=nginx \
+  --set receiver.ingress.tls.enabled=true \
+  --set receiver.ingress.tls.issuerRef.name=letsencrypt
+```
+
+This creates:
+- A cert-manager `Certificate` resource requesting a TLS cert for your hostname
+- An nginx `Ingress` routing traffic to the receiver service
+
+To customize annotations or use a different ingress controller, override via a values file:
+
+```yaml
+# my-values.yaml
+receiver:
+  ingress:
+    enabled: true
+    className: traefik
+    host: cfs-logs.my-domain.com
+    annotations:
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    tls:
+      enabled: true
+      issuerRef:
+        kind: ClusterIssuer
+        name: my-issuer
+```
+
+```bash
+helm install cfs-log ./charts/cfs-log-exporter/ -f my-values.yaml
+```
+
+To skip TLS entirely (e.g., behind a load balancer that terminates TLS):
+
+```bash
+helm install cfs-log ./charts/cfs-log-exporter/ \
+  --set receiver.ingress.enabled=true \
+  --set receiver.ingress.host="cfs-logs.internal" \
+  --set receiver.ingress.tls.enabled=false
+```
 
 ## Templates
 

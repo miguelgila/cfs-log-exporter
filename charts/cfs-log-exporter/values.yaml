@@ -23,9 +23,10 @@ exporter:
       cpu: 200m
       memory: 128Mi
   rbac:
-    # Set to false on CSM clusters where the default service account
-    # already has pod watch/log read permissions.
-    create: true
+    # Most CSM clusters already grant the required permissions to the
+    # default service account. Set to true only if your cluster has
+    # restrictive RBAC policies.
+    create: false
 
 # -- Receiver settings
 receiver:
